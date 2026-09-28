@@ -46,7 +46,11 @@ def fcst_iterator(fcst, start_dates):
         )
 
 
-def test_mae_coverage_uses_corresponding_quantile():
+@pytest.mark.parametrize(
+    "quantiles", [[0.1, 0.9], [0.1, 0.5, 0.9], [0.1, 0.9, 0.5]]
+)
+@pytest.mark.parametrize("coverage_offset", [0.0, 0.05])
+def test_mae_coverage_uses_corresponding_quantile(quantiles, coverage_offset):
     metric_per_ts = pd.DataFrame(
         {
             "MSE": [0.0],
@@ -59,18 +63,17 @@ def test_mae_coverage_uses_corresponding_quantile():
             "sMAPE": [0.0],
             "MSIS": [0.0],
             "num_masked_target_values": [0.0],
-            "QuantileLoss[0.1]": [0.0],
-            "Coverage[0.1]": [0.1],
-            "QuantileLoss[0.9]": [0.0],
-            "Coverage[0.9]": [0.9],
         }
     )
+    for quantile in quantiles:
+        metric_per_ts[f"QuantileLoss[{quantile}]"] = [0.0]
+        metric_per_ts[f"Coverage[{quantile}]"] = [quantile + coverage_offset]
 
-    metrics, _ = Evaluator(quantiles=[0.1, 0.9]).get_aggregate_metrics(
+    metrics, _ = Evaluator(quantiles=quantiles).get_aggregate_metrics(
         metric_per_ts
     )
 
-    assert metrics["MAE_Coverage"] == pytest.approx(0.0)
+    assert metrics["MAE_Coverage"] == pytest.approx(coverage_offset)
 
 
 def naive_forecaster(ts, prediction_length, num_samples=100, target_dim=0):
